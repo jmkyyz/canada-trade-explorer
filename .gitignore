@@ -1,0 +1,12 @@
+# Data store — never commit (multi-GB DuckDB + Parquet)
+*.duckdb
+*.duckdb.wal
+data/
+parquet/
+downloads/
+
+*.log
+__pycache__/
+*.pyc
+.env
+.DS_Store

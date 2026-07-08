@@ -1,0 +1,15 @@
+# StatCan "Canadian international merchandise trade" release dates.
+# One YYYY-MM-DD per line (the day The Daily publishes, 08:30 ET).
+# Source: https://www150.statcan.gc.ca/n1/dai-quo/cal1-eng.htm
+# After the last date, add the next published schedule and re-run
+# make_refresh_plist.py to refresh the launchd triggers.
+#
+# date        # reference month released
+2026-07-07    # May 2026
+2026-08-04    # June 2026
+2026-09-03    # July 2026
+2026-10-06    # August 2026
+2026-11-04    # September 2026
+2026-12-08    # October 2026
+2027-01-06    # November 2026
+2027-02-04    # December 2026
