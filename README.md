@@ -1,5 +1,15 @@
 # Canada Trade Explorer
 
+> **Mirror — not the canonical source.** The live code is
+> `jmkyyz/statcan-explorer`, directory `cimt/`, and that is where the monthly
+> refresh job actually runs from: the `com.statcan.cimt-refresh.plist` in this
+> repo writes its log to `/Users/jasonkirby/statcan-explorer/cimt/`, and the
+> install steps below all reference `~/statcan-explorer/cimt/`. The two copies
+> are byte-identical today, but they were split by copying files rather than by
+> a history-preserving extraction, so git cannot warn you if they drift (the
+> sibling `lobbyist-explorer` mirror drifted two weeks behind within a month).
+> Make changes in the monorepo.
+
 A Canadian merchandise-trade explorer (USA-Trade-Online style) over the StatCan
 **CIMT** bulk annual CSVs, using a local **DuckDB + Hive-partitioned Parquet**
 store so aggregations are sub-second — no per-vector WDS round-trips. (Internal
