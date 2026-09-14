@@ -5,6 +5,11 @@ A Canadian merchandise-trade explorer (USA-Trade-Online style) over the StatCan
 store so aggregations are sub-second — no per-vector WDS round-trips. (Internal
 dir/code name remains `cimt`.)
 
+**This repo is the canonical source.** A copy of these files also lives in
+`jmkyyz/statcan-explorer/cimt/`, which is what the live site is served from
+today. That copy is a deploy-time mirror, not a second source — make changes
+here.
+
 Status: **all five phases are built, and the app is deployed.** Ingest pipeline
 + rollups + dimension lookups (Phase 1), the Flask query API on port 5003
 (Phase 2), the query-builder UI `cimt-explorer.html` served at `/` (Phase 3),
@@ -304,10 +309,16 @@ plus an object store — no backend.
 | Data slice | Cloudflare R2, public base `https://pub-a740e33eeabf4a1f87594232306f24e2.r2.dev/cimt` |
 | Monthly refresh | a scheduled job on a single machine (`com.statcan.cimt-refresh.plist`) |
 
-**This repo is a split-off copy.** Production is served from the monorepo's
-`cimt/` directory, so a change here does not reach the live site until it is
-mirrored there — and vice versa. The two were byte-identical at the time of the
-split. Decide which copy is canonical before editing both.
+**This repo is canonical; the monorepo copy is a mirror.** Production is served
+from `jmkyyz/statcan-explorer`'s `cimt/` directory, so a change made here does
+not reach the live site until it is copied there and pushed (Render auto-deploys
+from that repo's `main`). Copy in that direction only, and treat `cimt/` as
+read-only — editing both is how the two silently diverge.
+
+The mirror step exists only because the `/trade` route lives in the monorepo.
+Since the page needs no backend, serving it straight from this repo on any
+static host would remove the second copy entirely; `window.R2_BASE` is the only
+thing `proxy.py` contributes, and that value is already public.
 
 ### Recovering the R2 base URL
 
