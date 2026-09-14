@@ -5,12 +5,16 @@ A Canadian merchandise-trade explorer (USA-Trade-Online style) over the StatCan
 store so aggregations are sub-second — no per-vector WDS round-trips. (Internal
 dir/code name remains `cimt`.)
 
-Status: **Phases 1–3 complete** — ingest pipeline + rollups + dimension lookups
-(Phase 1), the Flask query API on port 5003 (Phase 2), and the query-builder UI
-`cimt-explorer.html` served at `/` (Phase 3). Phase 4 (monthly refresh) and
-Phase 5 (optional R2 publish) are not built. The store currently holds only the
-2007/2012/2017/2023 sample — run the full backfill (`ingest.py --years
-2007-2026`) when ready.
+Status: **all five phases are built, and the app is deployed.** Ingest pipeline
++ rollups + dimension lookups (Phase 1), the Flask query API on port 5003
+(Phase 2), the query-builder UI `cimt-explorer.html` served at `/` (Phase 3),
+the release-date monthly refresh (Phase 4), and the Cloudflare R2 publish behind
+the public `/trade` page (Phase 5). See
+[How this is deployed](#how-this-is-deployed) for the live wiring.
+
+Running it needs a data store, which is **not** in the repo (`data/` is
+git-ignored). If yours is empty or holds only the 2007/2012/2017/2023 sample,
+run the full backfill first: `python ingest.py --years 2007-2026`.
 
 Open it: `python api.py` then visit http://127.0.0.1:5003/
 
@@ -132,8 +136,9 @@ month-precise ranges, and sorts time-series breakdowns chronologically.
 
 ## Query-builder UI (Phase 3)
 
-`cimt-explorer.html` (served at `/`) — single-file vanilla-JS app, Chart.js, the
-StatCan Explorer design system. Pick a flow — imports, total/domestic exports,
+`cimt-explorer.html` (served at `/`) — single-file vanilla-JS app, Chart.js, and
+Globe and Mail brand styling (`--brand` red `#e2001a`, Pratt-Bold display serif)
+over Fluent-neutral greys. Pick a flow — imports, total/domestic exports,
 or **balance** (total exports − imports, value-only, ranked by magnitude);
 optionally filter by product (HS tree drill-down), partner country, province,
 **U.S. state** (local API mode only — the online slice has no state column),
@@ -227,12 +232,12 @@ with CORS+range, so open `http://127.0.0.1:5003/?wasm=1`.
    Write). Note the account ID + access key/secret.
 2. Enable **public access** — either the managed `https://<hash>.r2.dev` URL or
    a custom domain. That public base URL is your `R2_BASE`.
-3. Add a **CORS policy** so browsers can range-read the parquet (the
-   `statcan-explorer.onrender.com` origin needs `GET`, the `Range` request
-   header, and the range response headers exposed):
+3. Add a **CORS policy** so browsers can range-read the parquet (the live
+   origin needs `GET`, the `Range` request header, and the range response
+   headers exposed):
 
    ```json
-   [{ "AllowedOrigins": ["https://statcan-explorer.onrender.com"],
+   [{ "AllowedOrigins": ["https://statcan.jasonkirby.ca"],
       "AllowedMethods": ["GET", "HEAD"],
       "AllowedHeaders": ["Range"],
       "ExposeHeaders": ["Content-Range", "Accept-Ranges", "Content-Length"] }]
@@ -252,7 +257,8 @@ launchd job once R2 is set up.
 
 ### 4. Deploy the page
 
-`proxy.py` serves the UI at **`statcan-explorer.onrender.com/trade`** and injects
+`proxy.py` — which lives in the **`jmkyyz/statcan-explorer`** monorepo, not in
+this repo — serves the UI at **<https://statcan.jasonkirby.ca/trade>** and injects
 the R2 URL from an env var (so it's not hard-coded). On Render, set:
 
 ```
@@ -262,3 +268,64 @@ CIMT_R2_BASE = https://<your-r2-public-base>/cimt
 then push to `main` (Render auto-deploys). No new server dependencies — `/trade`
 is a static page; all querying happens in the visitor's browser. The old
 `/api/cimt*` WDS routes are untouched.
+
+## How this is deployed
+
+The public page is **<https://statcan.jasonkirby.ca/trade>**. Nothing in this
+repo serves it directly — the request path is:
+
+```
+statcan.jasonkirby.ca              custom domain, proxied through Cloudflare
+        ↓                          (Cloudflare injects its Web Analytics beacon
+        ↓                           at the edge — no code in either repo does)
+Render web service "statcan-explorer"
+        ↓                          render.yaml → startCommand: python proxy.py
+proxy.py   @app.route("/trade")
+        ↓                          reads cimt/cimt-explorer.html, injects
+        ↓                          <script>window.R2_BASE="…"</script> into <head>
+visitor's browser
+                                   DuckDB-WASM queries the Parquet slice in
+                                   Cloudflare R2 over HTTP range requests
+```
+
+Render runs **no query code**: it reads one HTML file and injects one string.
+Every aggregation happens in the reader's browser. That is why the online copy
+costs nothing to serve, and why porting it elsewhere needs only static hosting
+plus an object store — no backend.
+
+### Where each piece lives
+
+| Piece | Location |
+|-------|----------|
+| Page served at `/trade` | `cimt/cimt-explorer.html` in **`jmkyyz/statcan-explorer`** — a copy of this repo's file |
+| The `/trade` route | `proxy.py` in **`jmkyyz/statcan-explorer`** (not in this repo) |
+| Render service definition | `render.yaml` in **`jmkyyz/statcan-explorer`** |
+| `CIMT_R2_BASE` env var | Render dashboard only — in no repo |
+| Data slice | Cloudflare R2, public base `https://pub-a740e33eeabf4a1f87594232306f24e2.r2.dev/cimt` |
+| Monthly refresh | launchd on the maintainer's Mac (`com.statcan.cimt-refresh.plist`) |
+
+**This repo is a split-off copy.** Production is served from the monorepo's
+`cimt/` directory, so a change here does not reach the live site until it is
+mirrored there — and vice versa. The two were byte-identical at the time of the
+split. Decide which copy is canonical before editing both.
+
+### Recovering the R2 base URL
+
+`CIMT_R2_BASE` is set by hand in the Render dashboard, so it exists in no repo.
+Quickest way to read it back: `view-source:` the live page and look for
+`window.R2_BASE=` in the `<head>`, where `proxy.py` injects it. Otherwise Render
+→ service → Environment, or Cloudflare → R2 → bucket → Settings.
+
+### Operational caveats
+
+- **Live data is refreshed from a laptop.** `refresh.py` runs under launchd on
+  StatCan release mornings and pushes the rebuilt slice to R2. If that Mac is
+  off or the job fails, the site silently serves stale data — there is no
+  server-side refresh and no alerting.
+- **`release_dates.txt` runs out after 2027-02-04.** After that the launchd
+  triggers stop firing until the next StatCan schedule is appended and
+  `make_refresh_plist.py` is re-run.
+- **`make_refresh_plist.py` hardcodes `/Users/jasonkirby/statcan-explorer/cimt/`**
+  and is macOS-only. Any other host needs cron, a systemd timer, or scheduled CI.
+- **Three third-party CDNs are load-bearing:** Chart.js and SheetJS from cdnjs,
+  DuckDB-WASM from jsDelivr. A host with a strict CSP must self-host all three.
