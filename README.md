@@ -302,7 +302,7 @@ plus an object store — no backend.
 | Render service definition | `render.yaml` in **`jmkyyz/statcan-explorer`** |
 | `CIMT_R2_BASE` env var | Render dashboard only — in no repo |
 | Data slice | Cloudflare R2, public base `https://pub-a740e33eeabf4a1f87594232306f24e2.r2.dev/cimt` |
-| Monthly refresh | launchd on a home Mac (`com.statcan.cimt-refresh.plist`) |
+| Monthly refresh | a scheduled job on a single machine (`com.statcan.cimt-refresh.plist`) |
 
 **This repo is a split-off copy.** Production is served from the monorepo's
 `cimt/` directory, so a change here does not reach the live site until it is
@@ -318,11 +318,12 @@ Quickest way to read it back: `view-source:` the live page and look for
 
 ### Operational caveats
 
-- **Live data is refreshed from a home Mac.** `refresh.py` runs under launchd
-  on StatCan release mornings and pushes the rebuilt slice to R2. If that Mac is
-  off or the job fails, the site silently serves stale data — there is no
-  server-side refresh and no alerting.
-- **`release_dates.txt` runs out after 2027-02-04.** After that the launchd
+- **Live data is refreshed from a single machine**, outside any server
+  environment. `refresh.py` runs on a schedule on StatCan release mornings and
+  pushes the rebuilt slice to R2. If that machine is unavailable or the job
+  fails, the site silently serves stale data — there is no server-side refresh
+  and no alerting.
+- **`release_dates.txt` runs out after 2027-02-04.** After that the scheduled
   triggers stop firing until the next StatCan schedule is appended and
   `make_refresh_plist.py` is re-run.
 - **`make_refresh_plist.py` hardcodes `/Users/jasonkirby/statcan-explorer/cimt/`**
