@@ -148,6 +148,150 @@
     return { x: pad.left, y, width: innerW, height: bottom - y };
   }
 
+  // ----------------------------------------------------------------- overlay
+  /*
+   * Text over the chart, shared by every template.
+   *   dim          0..1 strength of the scrim that fades the chart back
+   *   txt.<n>      0..1 visibility of text item n
+   *   cnt.<n>      0..1 progress of a rolling number (effect "count")
+   * Items live in numbered slots; a new item in a filled slot replaces the old one.
+   */
+  const NUM_RE = /[-−]?\d[\d,]*(?:\.\d+)?/;
+
+  function parseNum(text) {
+    const m = String(text).match(NUM_RE);
+    if (!m) return null;
+    const raw = m[0].replace("−", "-");
+    const dec = raw.includes(".") ? raw.split(".")[1].length : 0;
+    return { value: parseFloat(raw.replace(/,/g, "")), dec, commas: raw.includes(","), match: m[0] };
+  }
+
+  function themeVal(theme, path, fallback) {
+    const v = path.split(".").reduce((o, k) => (o == null ? o : o[k]), theme);
+    return v == null ? fallback : v;
+  }
+
+  function buildOverlay(ctx) {
+    const { root, width, height } = ctx;
+    ctx.overlay = {
+      scrim: root.append("rect").attr("class", "scrim").attr("width", width).attr("height", height)
+        .attr("opacity", 0).attr("pointer-events", "none"),
+      layer: root.append("g").attr("class", "overlay-text"),
+      items: [], slots: {}, scrimColors: [],
+    };
+    ctx.tl.init("dim", 0);
+  }
+
+  function compileOverlay(cue, ctx) {
+    const O = ctx.overlay, tl = ctx.tl, p = cue.params || {}, t = cue.t, th = ctx.theme;
+    const dur = p.duration != null ? +p.duration : th.motion.fade;
+    switch (cue.action) {
+      case "dim_chart":
+        O.scrimColors.push({ t, color: p.color || themeVal(th, "overlay.scrim_color", th.chart.background) });
+        tl.tween("dim", t, dur, p.amount != null ? +p.amount : themeVal(th, "overlay.dim", 0.88));
+        return true;
+      case "undim_chart":
+        tl.tween("dim", t, dur, 0);
+        return true;
+      case "show_text": {
+        const id = O.items.length;
+        const prev = O.slots[p.slot] != null ? O.items[O.slots[p.slot]] : null;
+        const item = {
+          id, text: String(p.text || ""), effect: p.effect || "fade",
+          size: +(p.size ?? themeVal(th, "overlay.text_size", 96)),
+          color: p.color || themeVal(th, "overlay.text_color", th.chart.title.color),
+          weight: p.weight === "regular" ? 400 : 700,
+          y: p.y != null ? +p.y : 50, align: p.align || "center",
+        };
+        item.num = parseNum(item.text);
+        // count rolls from the number this slot showed before (or from 0)
+        item.from = prev && prev.num ? prev.num.value : 0;
+        item.g = O.layer.append("g").attr("opacity", 0);
+        item.text_el = item.g.append("text");
+        O.items.push(item);
+        tl.init("txt." + id, 0);
+        if (item.effect === "count" && item.num) {
+          tl.init("cnt." + id, 0);
+          if (prev) { tl.set("txt." + prev.id, t, 0); tl.set("txt." + id, t, 1); }
+          else tl.tween("txt." + id, t, Math.min(dur, th.motion.fade), 1);
+          tl.tween("cnt." + id, t, dur, 1, "cubic-out");
+        } else {
+          if (prev) tl.tween("txt." + prev.id, t, dur, 0);
+          tl.tween("txt." + id, t, dur, 1);
+        }
+        O.slots[p.slot] = id;
+        layoutText(ctx, item, item.text);
+        return true;
+      }
+      case "hide_text": {
+        const slots = p.slot === "all" ? Object.keys(O.slots) : [p.slot];
+        for (const sl of slots) {
+          if (O.slots[sl] != null) tl.tween("txt." + O.slots[sl], t, dur, 0);
+          delete O.slots[sl];
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Lay out one text item: hard returns are kept, long lines wrap, block centred on y%. */
+  function layoutText(ctx, item, str) {
+    const th = ctx.theme, pad = th.chart.padding;
+    const lh = item.size * themeVal(th, "overlay.line_height", 1.1);
+    const maxW = Math.min(themeVal(th, "overlay.max_width", ctx.width), ctx.width - pad.left - pad.right);
+    const x = item.align === "left" ? pad.left : item.align === "right" ? ctx.width - pad.right : ctx.width / 2;
+    const el = item.text_el.attr("x", x)
+      .attr("text-anchor", item.align === "left" ? "start" : item.align === "right" ? "end" : "middle")
+      .style("font-family", th.fonts.headline).style("font-size", item.size + "px")
+      .style("font-weight", item.weight).attr("fill", item.color);
+    el.text(null);
+    let lines = 0;
+    const newLine = txt => el.append("tspan").attr("x", x).attr("dy", lines++ ? lh : 0).text(txt);
+    for (const para of str.split("\n")) {
+      const words = para.split(/\s+/).filter(Boolean);
+      if (!words.length) { newLine("\u00a0"); continue; }  // blank line from a double return
+      let line = [], ts = newLine("");
+      for (const w of words) {
+        line.push(w);
+        ts.text(line.join(" "));
+        if (line.length > 1 && ts.node().getComputedTextLength() > maxW) {
+          line.pop();
+          ts.text(line.join(" "));
+          line = [w];
+          ts = newLine(w);
+        }
+      }
+    }
+    const blockH = lines * lh;
+    const cy = ctx.height * item.y / 100;
+    el.attr("y", cy - blockH / 2 + item.size * 0.8);
+  }
+
+  function renderOverlay(t, ctx) {
+    const O = ctx.overlay, tl = ctx.tl;
+    const dim = tl.value("dim", t);
+    let color = O.scrimColors.length ? O.scrimColors[0].color : ctx.theme.chart.background;
+    for (const c of O.scrimColors) if (c.t <= t) color = c.color;
+    O.scrim.attr("fill", color).attr("opacity", dim);
+    const rise = themeVal(ctx.theme, "overlay.rise", 40);
+    for (const it of O.items) {
+      const op = tl.value("txt." + it.id, t);
+      it.g.attr("opacity", op);
+      if (!op) continue;
+      it.g.attr("transform", it.effect === "rise" ? `translate(0,${(1 - op) * rise})` : null);
+      if (it.effect === "count" && it.num) {
+        const f = tl.value("cnt." + it.id, t);
+        const v = it.from + (it.num.value - it.from) * f;
+        let s = v.toFixed(it.num.dec);
+        if (it.num.commas) s = d3.format(`,.${it.num.dec}f`)(v);
+        s = s.replace("-", "−");
+        const str = it.text.replace(it.num.match, s);
+        if (str !== it.shown) { layoutText(ctx, it, str); it.shown = str; }
+      }
+    }
+  }
+
   // ------------------------------------------------------------------ engine
   const templates = {};
 
@@ -177,6 +321,7 @@
     };
     ctx.plotRect = buildChrome(ctx);
     impl.setup(ctx);
+    buildOverlay(ctx);  // after the template, so it sits on top
 
     // Compile cues (time order). Common actions first, then the template's.
     const cues = [...(spec.cues || [])].sort((a, b) => a.t - b.t);
@@ -195,7 +340,7 @@
         case "hide_annotation": tl.tween("ann." + p.annotation, cue.t, dur, 0); break;
         case "hold": break;
         default:
-          if (!impl.compile(cue, ctx)) console.warn("Unhandled action", cue.action);
+          if (!compileOverlay(cue, ctx) && !impl.compile(cue, ctx)) console.warn("Unhandled action", cue.action);
       }
     }
 
@@ -208,6 +353,7 @@
         const chartOp = tl.value("chart", t);
         ctx.chromeLayer.attr("opacity", chartOp);
         impl.render(t, ctx, chartOp);
+        renderOverlay(t, ctx);
         return tl.signature(t);
       },
       get time() { return lastT; },

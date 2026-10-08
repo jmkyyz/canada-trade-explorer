@@ -121,3 +121,6 @@ fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px
   .preview-col { position: static; }
 }
 .stack > button { align-self: flex-start; }
+.cue-editor label.wide { flex-basis: 100%; }
+.cue-editor textarea { font-family: inherit; font-size: 15px; }
+.word-tools { margin: 0 0 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); align-items: center; }

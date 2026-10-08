@@ -69,11 +69,14 @@ def transcribe(wav_path, prompt: str = "", progress_cb=None, duration: float = N
             text = w.word.strip()
             if not text:
                 continue
+            # no leading space = Whisper split one written word, e.g. "1" + ".2"
             words.append({"i": len(words), "text": text, "start": round(w.start, 3),
-                          "end": round(w.end, 3), "prob": round(w.probability, 3)})
+                          "end": round(w.end, 3), "prob": round(w.probability, 3),
+                          "glued": not w.word.startswith(" ")})
         if progress_cb and duration:
             progress_cb(min(0.99, seg.end / duration))
-    return {"words": words, "language": info.language,
+    from .transcript_edit import join_continuations
+    return {"words": join_continuations(words), "language": info.language,
             "source": f"faster-whisper:{config.WHISPER_MODEL}"}
 
 

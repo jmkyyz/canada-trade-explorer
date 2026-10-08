@@ -44,6 +44,15 @@ CUES = {
         {"t": 1.0, "action": "split_line", "params": {"series": "revised_estimate", "style": "peel", "duration": 2}},
         {"t": 3.5, "action": "shade_gap", "params": {"series": "revised_estimate"}},
         {"t": 4.0, "action": "label_gap", "params": {"series": "revised_estimate", "x": "end"}},
+        {"t": 4.5, "action": "draw_line", "params": {"series": "previous_estimate", "from": "2024-Q1", "duration": 1}},
+        {"t": 5.0, "action": "dim_chart", "params": {}},
+        {"t": 5.2, "action": "show_text", "params": {"slot": "1", "text": "Per-capita GDP", "y": 30}},
+        {"t": 5.4, "action": "show_text", "params": {"slot": "2", "text": "1.6%", "size": 220, "y": 55}},
+        {"t": 6.0, "action": "show_text", "params": {"slot": "2", "text": "0.6%", "size": 220, "y": 55,
+                                                     "effect": "count", "duration": 1.5}},
+        {"t": 8.0, "action": "hide_text", "params": {"slot": "all"}},
+        {"t": 8.5, "action": "show_text", "params": {"slot": "1", "text": "Target for non-permanent\npopulation share",
+                                                     "effect": "rise"}},
     ],
 }
 
@@ -59,11 +68,12 @@ def test_seek_is_pure_function_of_time(tmp_path, template):
         pg.goto(page_path.as_uri())
         pg.wait_for_function("window.__ready === true")
         shot = lambda t: (pg.evaluate("t => window.__seek(t)", t), pg.screenshot())
-        sig_a, img_a = shot(5.3)
-        shot(9.0)
-        shot(0.0)
-        sig_b, img_b = shot(5.3)
-        assert sig_a == sig_b and img_a == img_b
+        for t in (5.3, 6.7, 8.7):  # includes a rolling number and rising text
+            sig_a, img_a = shot(t)
+            shot(9.0)
+            shot(0.0)
+            sig_b, img_b = shot(t)
+            assert sig_a == sig_b and img_a == img_b, t
         # nothing animates after the last cue settles -> frames can be reused
         assert shot(20.0)[0] == shot(30.0)[0]
         # and something does change while a line is drawing

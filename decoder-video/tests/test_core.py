@@ -182,3 +182,64 @@ def test_load_wav_for_whisper(tmp_path):
     extract_wav(src, wav)
     a = load_wav(wav)
     assert a.dtype.name == "float32" and abs(len(a) - 32000) < 1600 and 0 < abs(a).max() <= 1.0
+
+
+# ---------------------------------------------------------------- transcript edits
+
+from decoder import transcript_edit as te  # noqa: E402
+
+
+def test_join_continuations_repairs_split_numbers():
+    words = [{"i": 0, "text": "about", "start": 0, "end": .3, "glued": False},
+             {"i": 1, "text": "1", "start": .35, "end": .5, "glued": False},
+             {"i": 2, "text": ".2", "start": .5, "end": .7, "glued": True},
+             {"i": 3, "text": "million", "start": .75, "end": 1.1, "glued": False},
+             {"i": 4, "text": "%", "start": 1.1, "end": 1.2, "glued": True}]
+    out = te.join_continuations(words)
+    assert [w["text"] for w in out] == ["about", "1.2", "million%"]
+    assert out[1]["start"] == .35 and out[1]["end"] == .7 and "glued" not in out[1]
+    assert [w["i"] for w in out] == [0, 1, 2]
+
+
+def test_join_continuations_leaves_separate_words_alone():
+    words = [{"i": 0, "text": "Canada", "start": 0, "end": .3, "glued": False},
+             {"i": 1, "text": "Then", "start": .35, "end": .5, "glued": True}]  # letters: never merged
+    assert [w["text"] for w in te.join_continuations(words)] == ["Canada", "Then"]
+
+
+def test_transcript_edits_keep_cues_on_their_words(project):
+    t = db.add_transcript(project, words_from("adding 1 .2 million people a year"), "import", "en")
+    on_million = db.add_cue(project, t["id"], 3, "million", "hold", {})
+    on_people = db.add_cue(project, t["id"], 4, "people", "hold", {})
+    te.apply(project, "merge", 1)                      # "1" + ".2"
+    w = db.latest_transcript(project)["words"]
+    assert [x["text"] for x in w][:3] == ["adding", "1.2", "million"]
+    assert db.get_cue(on_million)["word_index"] == 2
+    te.apply(project, "text", 0, "now adding")         # split one word into two
+    w = db.latest_transcript(project)["words"]
+    assert [x["text"] for x in w][:3] == ["now", "adding", "1.2"]
+    assert db.get_cue(on_million)["word_index"] == 3 and w[3]["text"] == "million"
+    te.apply(project, "delete", 3)                     # cue on a deleted word moves to the next one
+    w = db.latest_transcript(project)["words"]
+    assert w[db.get_cue(on_million)["word_index"]]["text"] == "people"
+    assert w[db.get_cue(on_people)["word_index"]]["text"] == "people"
+    assert db.get_cue(on_million)["anchor_word"] == "people"
+
+
+# ---------------------------------------------------------------- overlay + start-from cues
+
+def test_overlay_and_start_from_cues_validate():
+    data, theme = parse_csv(SAMPLE), load_theme("default")
+    T = get("line_split")
+    cfg = T.default_config(data, theme)
+    clean, errs = T.validate_cue("show_text", {"slot": "2", "text": "Target for non-permanent\r\npopulation share",
+                                               "size": "64", "color": "#eb6834", "effect": "fade"}, cfg, data)
+    assert not errs and clean["text"] == "Target for non-permanent\npopulation share" and clean["size"] == 64
+    _, errs = T.validate_cue("show_text", {"text": "  ", "color": "red"}, cfg, data)
+    assert len(errs) == 2  # empty text, bad colour
+    clean, errs = T.validate_cue("dim_chart", {}, cfg, data)
+    assert not errs and "amount" not in clean  # theme default used at render time
+    clean, errs = T.validate_cue("draw_line", {"series": "revised_estimate", "from": "2025-Q2"}, cfg, data)
+    assert not errs and clean["from"] == "2025-Q2"
+    clean, _ = T.validate_cue("draw_line", {"series": "revised_estimate", "from": ""}, cfg, data)
+    assert "from" not in clean

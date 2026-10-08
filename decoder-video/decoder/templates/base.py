@@ -18,9 +18,16 @@ Parameter types understood by the editor and validator:
   number      float
   int         integer
   bool        checkbox
-  text        free text
+  text        free text (one line)
+  textarea    free text; hard returns are kept as line breaks
+  color       #rrggbb
   choice      one of ``options``
+
+A default of "@theme:<path>" (e.g. "@theme:overlay.text_size") means "use the
+theme's value": the editor pre-fills it from the theme, and if the cue leaves
+it out the renderer falls back to the theme, so a rebrand changes it too.
 """
+import re
 from dataclasses import dataclass, field
 
 
@@ -33,6 +40,7 @@ class Param:
     options: list = field(default_factory=list)
     allow_end: bool = False
     optional: bool = False
+    placeholder: str = ""  # editor label for "left blank" on optional params
 
     def to_json(self):
         d = {"name": self.name, "type": self.type, "label": self.label, "default": self.default}
@@ -42,6 +50,8 @@ class Param:
             d["allow_end"] = True
         if self.optional:
             d["optional"] = True
+        if self.placeholder:
+            d["placeholder"] = self.placeholder
         return d
 
 
@@ -51,10 +61,11 @@ class Action:
     label: str
     description: str
     params: list = field(default_factory=list)
+    group: str = "Chart"  # heading in the editor's action menu
 
     def to_json(self):
         return {"name": self.name, "label": self.label, "description": self.description,
-                "params": [p.to_json() for p in self.params]}
+                "group": self.group, "params": [p.to_json() for p in self.params]}
 
 
 def duration(default=0.6, label="Duration (s)"):
@@ -75,8 +86,42 @@ COMMON_ACTIONS = [
            [Param("annotation", "annotation", "Annotation"), duration(0.4)]),
     Action("hold", "Hold",
            "No change on screen. A marker for the cue sheet (e.g. 'let this sink in').",
-           [Param("note", "text", "Note for the video team", "", optional=True)]),
+           [Param("note", "text", "Note for the video team", "", optional=True)], group="Other"),
 ]
+
+TEXT_SLOTS = ["1", "2", "3", "4", "5", "6"]
+
+# Big text over the chart. Text lives in numbered slots: showing text in a slot
+# that's already filled replaces what's there, in the same place.
+OVERLAY_ACTIONS = [
+    Action("dim_chart", "Fade chart back",
+           "Fade the chart into the background so text can sit on top of it.",
+           [Param("amount", "number", "How far back (0 = not at all, 1 = gone)", "@theme:overlay.dim"),
+            Param("color", "color", "Fade towards colour", "@theme:overlay.scrim_color"),
+            duration(0.6)], group="Text over chart"),
+    Action("undim_chart", "Bring chart back", "Undo 'Fade chart back'.",
+           [duration(0.6)], group="Text over chart"),
+    Action("show_text", "Show text",
+           "Put text over the chart; hard returns make new lines. Slots 1, 2 and 3 start as a "
+           "label, a big number and a note. Showing text in a slot that already has text "
+           "replaces it in place; the 'count' effect rolls the number from the old text to "
+           "the new one (e.g. 1.6% to 0.6%).",
+           [Param("slot", "choice", "Slot", "1", options=TEXT_SLOTS),
+            Param("text", "textarea", "Text"),
+            Param("size", "number", "Font size (px)", "@theme:overlay.text_size"),
+            Param("color", "color", "Colour", "@theme:overlay.text_color"),
+            Param("weight", "choice", "Weight", "bold", options=["bold", "regular"]),
+            Param("y", "number", "Vertical position (% of chart height, 0 = top)", 50),
+            Param("align", "choice", "Align", "center", options=["center", "left", "right"]),
+            Param("effect", "choice", "Effect", "fade", options=["fade", "rise", "count"]),
+            duration(0.5, "Duration (s); for 'count', how long the number rolls")],
+           group="Text over chart"),
+    Action("hide_text", "Hide text", "Fade out the text in one slot, or in every slot.",
+           [Param("slot", "choice", "Slot", "all", options=["all"] + TEXT_SLOTS), duration(0.4)],
+           group="Text over chart"),
+]
+
+HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
 class Template:
@@ -90,7 +135,7 @@ class Template:
     # -- manifest ------------------------------------------------------------
     @classmethod
     def all_actions(cls):
-        return cls.actions + COMMON_ACTIONS  # template's own first: they're the common picks
+        return cls.actions + COMMON_ACTIONS + OVERLAY_ACTIONS  # template's own first
 
     @classmethod
     def action(cls, name):
@@ -168,6 +213,8 @@ class Template:
             v = params.get(p.name, p.default)
             if v in (None, "") and p.optional:
                 continue
+            if isinstance(v, str) and v.startswith("@theme:"):
+                continue  # left out: the renderer uses the theme's value
             try:
                 if p.type == "series":
                     v = v or (sorted(series)[0] if series else None)
@@ -193,6 +240,13 @@ class Template:
                 elif p.type == "choice":
                     if v not in p.options:
                         errors.append(f"{p.label}: must be one of {p.options}")
+                elif p.type == "color":
+                    if not HEX.match(str(v)):
+                        errors.append(f"{p.label}: use a colour like #1a2b3c")
+                elif p.type == "textarea":
+                    v = str(v or "").replace("\r\n", "\n").strip("\n")
+                    if not v.strip():
+                        errors.append(f"{p.label}: enter some text")
                 else:
                     v = "" if v is None else str(v)
             except (TypeError, ValueError):
@@ -218,4 +272,14 @@ class Template:
                 return f"Hide annotation {p['annotation']}"
             case "hold":
                 return "Hold" + (f" — {p['note']}" if p.get("note") else "")
+            case "dim_chart":
+                return "Fade chart back"
+            case "undim_chart":
+                return "Bring chart back"
+            case "show_text":
+                txt = " / ".join(ln.strip() for ln in p.get("text", "").split("\n") if ln.strip())
+                how = ", counting" if p.get("effect") == "count" else ""
+                return f"Text slot {p.get('slot')}{how}: “{txt}”"
+            case "hide_text":
+                return "Hide all text" if p.get("slot") == "all" else f"Hide text slot {p.get('slot')}"
         return f"{action} {s or ''}".strip()

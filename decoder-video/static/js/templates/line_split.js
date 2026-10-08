@@ -69,7 +69,7 @@
   /** Points of a diverging series: from the split point on, morphed from the base. */
   LineSplit.linePoints = function (s, head, t, ctx) {
     const sp = ctx.splits[s.key];
-    if (!sp) return B.partial(s.points, head);
+    if (!sp) return B.linePoints.call(this, s, head, t, ctx);
     const base = ctx.seriesByKey[sp.base];
     const f = ctx.tl.value("split." + s.key, t) ?? 1;
     const pts = s.points.slice(sp.index).map((pt, k) => {

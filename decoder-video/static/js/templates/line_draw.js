@@ -45,6 +45,12 @@
   const LineBase = {
     partial, valueAt,
 
+    /** Points to draw for series s at time t: from its tail up to its head. */
+    linePoints(s, head, t, ctx) {
+      const tail = ctx.tl.value("tail." + s.key, t);
+      return partial(s.points.filter(p => p.xp >= tail - 1e-9), head);
+    },
+
     setup(ctx) {
       const { root, theme, config, data, plotRect } = ctx;
       const C = theme.chart, M = C.plot_margin, A = C.axis;
@@ -111,6 +117,7 @@
         s.labelLines = ctx.helpers.wrapText(s.label, s.name, M.right - C.end_label.gap - 10,
                                             C.end_label.size * 1.1);
         ctx.tl.init("head." + s.key, ctx.xmin - 1);
+        ctx.tl.init("tail." + s.key, ctx.xmin);  // where the line starts
         ctx.tl.init("op." + s.key, 1);
       }
       this.buildAnnotations(ctx);
@@ -212,8 +219,14 @@
         case "draw_line": {
           const to = ctx.xpos(p.to || "end");
           tl.set("op." + p.series, t, 1);
-          // Start from the first data point, not from "nothing drawn yet" left of the axis.
-          const from = Math.max(tl.value("head." + p.series, t), ctx.xmin);
+          let from;
+          if (p.from) {  // start somewhere else: move the tail there and draw from it
+            from = ctx.xpos(p.from);
+            tl.set("tail." + p.series, t, from);
+          } else {
+            // continue from where it stopped (or from the first data point)
+            from = Math.max(tl.value("head." + p.series, t), tl.value("tail." + p.series, t));
+          }
           tl.tween("head." + p.series, t, +p.duration || 2, to, p.ease || "cubic-in-out", 0, from);
           return true;
         }
@@ -249,7 +262,7 @@
       for (const s of ctx.series) {
         const head = tl.value("head." + s.key, t);
         const op = tl.value("op." + s.key, t);
-        const pts = this.linePoints ? this.linePoints(s, head, t, ctx) : partial(s.points, head);
+        const pts = this.linePoints(s, head, t, ctx);
         const visible = pts.length > 1 && op > 0;
         s.path.attr("d", visible ? ctx.lineGen(pts) : null).attr("opacity", op);
         const tip = visible ? pts[pts.length - 1] : null;

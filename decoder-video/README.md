@@ -52,8 +52,11 @@ a different build, set `DECODER_FFMPEG` and `DECODER_FFPROBE` to its paths.
 4. **Transcript & cues.** Click a word to jump the preview there, then attach an
    action. You can use an offset in seconds to nudge an action before or after
    the word. Words with cues are underlined, and low-confidence words are
-   orange. Double-click a word to fix its spelling: the captions use your
-   spelling and the timing stays the same.
+   orange. To fix the transcript, use the tools at the top of the cue panel
+   (or double-click a word): edit a word (a space splits it in two), merge it
+   with the next word, or delete it. Timing is kept, the captions use your
+   text, and cues stay on their words. New transcriptions automatically rejoin
+   numbers Whisper splits apart ("1" ".2" → "1.2").
 5. **Preview.** Press Play (or space). The left panel is the exact 1080×1920
    layout, scaled down. Under "Talent framing", sliders set the vertical crop and
    zoom of your shot.
@@ -170,7 +173,8 @@ why the timing follows your delivery when you re-record.
 | Template | Actions |
 |---|---|
 | all | `show_chart`, `hide_chart`, `show_annotation`, `hide_annotation`, `hold` (a cue-sheet marker only) |
-| line_draw | `draw_line` (to an x or the end, continuing from where the line stopped), `reveal_line`, `hide_line`, `highlight_point` (pulse + marker + value), `clear_highlights` |
+| line_draw | `draw_line` (to an x or the end, continuing from where the line stopped, or from a chosen "Start from" x), `reveal_line`, `hide_line`, `highlight_point` (pulse + marker + value), `clear_highlights` |
+| text over chart (all) | `dim_chart` (fade the chart back), `undim_chart`, `show_text` (slot, multi-line text, size, colour, weight, position, align; effect `fade`, `rise` or `count`; text in an occupied slot replaces it, and `count` rolls the number from the old text, e.g. 1.6% → 0.6%), `hide_text` (one slot or all) |
 | line_split | everything in line_draw, plus `split_line` (*peel*: morph away from the base line; *draw*: draw rightward from the split), `shade_gap`, `label_gap` (bracket + "+214,700") |
 
 Before the first `show_chart` cue the chart frame is hidden. With no
@@ -246,7 +250,7 @@ The hooks are already in place:
 ## Testing
 
 ```bash
-python -m pytest -q tests                                   # 22 tests: CSV, captions, cues/re-attach, engine purity
+python -m pytest -q tests                                   # CSV, captions, cues/re-attach, transcript edits, engine purity
 cd scripts/testvideo && npm install && cd ../..             # offline TTS (eSpeak-NG WASM) for synthetic takes
 python scripts/make_test_video.py scripts/testvideo/take1.txt media/take1 --label "TAKE 1"
 python scripts/make_test_video.py scripts/testvideo/take2.txt media/take2 --label "TAKE 2"

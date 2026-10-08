@@ -436,11 +436,8 @@
     const n = e.target.closest(".w");
     if (!n) return;
     const i = +n.dataset.i, w = P.transcript.words[i];
-    const text = prompt("Fix this word (timing stays the same):", w.text);
-    if (text && text !== w.text) {
-      await api("PATCH", `/api/projects/${PID}/transcript/words/${i}`, { text });
-      await refresh();
-    }
+    const text = prompt("Fix this word (timing stays the same). A space splits it into two words; empty deletes it:", w.text);
+    if (text != null && text !== w.text) await editWord(i, "text", text);
   });
 
   function selectWord(i, cue = null) {
@@ -457,13 +454,20 @@
     const cfg = P.project.config, data = P.project.data;
     let v = value ?? p.default;
     if (v === "@diverging") v = (cfg.series || []).find(s => s.key !== cfg.options?.base_series)?.key;
+    if (typeof v === "string" && v.startsWith("@theme:"))
+      v = v.slice(7).split(".").reduce((o, k) => o?.[k], P.theme);
     const attrs = { "data-p": p.name };
     switch (p.type) {
+      case "textarea":
+        return el("textarea", { ...attrs, rows: 3, placeholder: "Press Return for a new line" }, v ?? "");
+      case "color":
+        return el("input", { ...attrs, type: "color", value: v || "#000000" });
       case "series":
         return el("select", attrs, (cfg.series || []).map(s => el("option", { value: s.key, selected: s.key === v }, s.name)));
       case "x":
-        return el("select", attrs, [...(p.allow_end ? ["end"] : []), ...data.x.values]
-          .map(x => el("option", { value: x, selected: x === v }, x === "end" ? "the end" : x)));
+        return el("select", attrs, [...(p.optional ? [""] : []), ...(p.allow_end ? ["end"] : []), ...data.x.values]
+          .map(x => el("option", { value: x, selected: x === (v ?? "") },
+            x === "" ? `(${p.placeholder || "default"})` : x === "end" ? "the end" : x)));
       case "annotation":
         return el("select", attrs, (cfg.annotations || []).map(a =>
           el("option", { value: a.id, selected: +a.id === +v }, `${a.id}: ${a.text}`)));
@@ -484,6 +488,14 @@
     box.textContent = "";
     const existing = cuesByWord().get(selWord) || [];
     box.append(el("h4", {}, `“${w.text}” at ${fmtT(w.start)}`));
+    const next = P.transcript.words[selWord + 1];
+    const fix = el("input", { value: w.text, style: "width:160px", title: "A space splits it into two words" });
+    box.append(el("div", { class: "row word-tools" },
+      el("span", { class: "small muted" }, "Fix transcript:"), fix,
+      el("button", { type: "button", onclick: () => editWord(selWord, "text", fix.value) }, "Save word"),
+      next ? el("button", { type: "button", title: "Join with the next word, e.g. “1” + “.2” → “1.2”",
+        onclick: () => editWord(selWord, "merge") }, `Merge with “${next.text}”`) : null,
+      el("button", { type: "button", class: "danger", onclick: () => editWord(selWord, "delete") }, "Delete word")));
     if (existing.length) {
       box.append(el("ul", { class: "existing" }, existing.map(c => el("li", {},
         el("span", {}, c.description),
@@ -491,22 +503,45 @@
         el("button", { type: "button", class: "danger", onclick: () => deleteCue(c.id) }, "Delete")))));
     }
     const actions = P.manifest.actions;
-    const sel = el("select", {}, actions.map(a => el("option", { value: a.name, selected: cue?.action === a.name }, a.label)));
+    const groups = [...new Set(actions.map(a => a.group || "Chart"))];
+    const sel = el("select", {}, groups.map(g => el("optgroup", { label: g },
+      actions.filter(a => (a.group || "Chart") === g)
+        .map(a => el("option", { value: a.name, selected: cue?.action === a.name }, a.label)))));
     const desc = el("div", { class: "desc" });
     const params = el("div", { class: "row" });
     const offset = el("input", { type: "number", step: 0.05, value: cue?.offset ?? 0, style: "width:90px" });
-    const fill = () => {
+    // New cues start from the settings of the latest cue of the same kind (same
+    // text slot for "Show text"), so sizes and colours stay consistent. Text isn't copied.
+    const lastLike = (action, slot) => [...P.cues].reverse().find(c => c.action === action &&
+      (slot == null || c.params.slot === slot));
+    const fill = (slot) => {
       const a = actions.find(a => a.name === sel.value);
       desc.textContent = a.description;
+      let base = cue && cue.action === a.name ? cue.params : null;
+      if (!base) {
+        const prev = lastLike(a.name, a.name === "show_text" ? (slot ?? null) : null) ||
+                     (a.name === "show_text" ? lastLike(a.name) : null);
+        base = prev ? { ...prev.params, text: undefined } : {};
+        if (slot != null) base.slot = slot;
+        // First text in a slot: slots 1/2/3 start as label / big number / note, stacked
+        // down the chart (4-6 repeat the pattern). Later cues copy the slot's last cue.
+        if (a.name === "show_text" && !lastLike(a.name, base.slot ?? "1")) {
+          const k = ((+(base.slot ?? 1)) - 1) % 3, ts = P.theme.overlay?.text_size ?? 72;
+          base.y = [30, 55, 78][k];
+          base.size = [ts, Math.round(ts * 3), Math.round(ts * 0.8)][k];
+        }
+      }
       params.textContent = "";
       for (const p of a.params) {
-        const input = paramInput(p, cue && cue.action === a.name ? cue.params[p.name] : undefined);
+        const input = paramInput(p, base[p.name]);
         params.append(p.type === "bool"
           ? el("label", { class: "radio" }, input, p.label)
-          : el("label", {}, p.label, input));
+          : el("label", { class: p.type === "textarea" ? "wide" : "" }, p.label, input));
+        if (a.name === "show_text" && p.name === "slot" && !(cue && cue.action === a.name))
+          input.addEventListener("change", () => fill(input.value));
       }
     };
-    sel.addEventListener("change", fill);
+    sel.addEventListener("change", () => fill());
     fill();
     const msg = el("span", { class: "small" });
     const save = async () => {
@@ -529,6 +564,14 @@
         el("button", { type: "button", onclick: () => { box.classList.add("hidden"); selWord = null; editingCue = null;
           document.querySelector(".w.sel")?.classList.remove("sel"); } }, "Close"),
         msg));
+  }
+
+  async function editWord(i, op, text = "") {
+    try {
+      await api("POST", `/api/projects/${PID}/transcript/words/${i}`, { op, text });
+      if (op === "delete" && i >= P.transcript.words.length - 1) selWord = Math.max(0, i - 1);
+      await refresh();
+    } catch (e) { alert(e.message); }
   }
 
   async function deleteCue(id) {

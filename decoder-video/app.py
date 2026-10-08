@@ -9,7 +9,7 @@ from pathlib import Path
 
 from flask import Flask, abort, jsonify, redirect, render_template, request, send_from_directory, url_for
 
-from decoder import captions, config, cues, db, jobs, media, render, segmentation, transcribe
+from decoder import captions, config, cues, db, jobs, media, render, segmentation, transcribe, transcript_edit
 from decoder import templates as tpl
 from decoder.csvdata import parse_csv
 from decoder.spec import build_spec, chart_page
@@ -285,20 +285,17 @@ def api_import_transcript(pid):
     return jsonify(res)
 
 
-@app.patch("/api/projects/<int:pid>/transcript/words/<int:i>")
+@app.post("/api/projects/<int:pid>/transcript/words/<int:i>")
 def api_edit_word(pid, i):
-    """Fix a mis-heard word's spelling (captions use it). Timing is unchanged."""
+    """Fix the transcript: {"op": "text", "text": "1.2"} renames (spaces split
+    the word, empty deletes it), {"op": "merge"} joins with the next word,
+    {"op": "delete"}. Timing is kept and cues stay on their words."""
     project_or_404(pid)
-    t = db.latest_transcript(pid)
-    text = (request.get_json(force=True).get("text") or "").strip()
-    if not t or not (0 <= i < len(t["words"])) or not text:
-        return err("Bad word")
-    t["words"][i]["text"] = text
-    db.update_transcript_words(t["id"], t["words"])
-    for c in db.list_cues(pid):
-        if c["transcript_id"] == t["id"] and c["word_index"] == i:
-            db.update_cue(c["id"], anchor_word=transcribe.norm(text))
-    return jsonify({"ok": True})
+    b = request.get_json(force=True)
+    try:
+        return jsonify(transcript_edit.apply(pid, b.get("op", "text"), i, b.get("text", "")))
+    except ValueError as e:
+        return err(str(e))
 
 
 # ---------------------------------------------------------------- cues

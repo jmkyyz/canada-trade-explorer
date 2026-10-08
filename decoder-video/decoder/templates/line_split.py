@@ -26,7 +26,8 @@ class LineSplit(LineDraw):
                "The diverging series emerges from the base line at the split point. "
                "'peel' morphs it away from the base; 'draw' draws it rightward from the split.",
                [Param("series", "series", "Diverging line", "@diverging"),
-                Param("from", "x", "Split at (blank = template option)", "", optional=True),
+                Param("from", "x", "Split at", "", optional=True,
+                      placeholder="the split point (template options)"),
                 Param("style", "choice", "Style", "peel", options=["peel", "draw"]),
                 duration(2.5),
                 Param("ease", "choice", "Easing", "cubic-in-out", options=EASES)]),

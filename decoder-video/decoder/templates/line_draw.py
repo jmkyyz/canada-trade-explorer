@@ -10,9 +10,12 @@ class LineDraw(Template):
 
     actions = [
         Action("draw_line", "Draw line",
-               "Draw a line from where it last stopped up to an x value (or the end). "
-               "Use several cues to draw a line in stages.",
+               "Draw a line up to an x value (or the end). It continues from where it last "
+               "stopped, so several cues draw it in stages; 'Start from' begins it somewhere "
+               "else instead (e.g. a second line that starts where the first one splits).",
                [Param("series", "series", "Line"),
+                Param("from", "x", "Start from", "", optional=True,
+                      placeholder="where the line last stopped"),
                 Param("to", "x", "Draw up to", "end", allow_end=True),
                 duration(2.0),
                 Param("ease", "choice", "Easing", "cubic-in-out", options=EASES)]),
@@ -45,7 +48,8 @@ class LineDraw(Template):
         match action:
             case "draw_line":
                 to = "the end" if params.get("to") == "end" else params.get("to")
-                return f"Draw “{s}” up to {to} over {params.get('duration')}s"
+                start = f" from {params['from']}" if params.get("from") else ""
+                return f"Draw “{s}”{start} up to {to} over {params.get('duration')}s"
             case "reveal_line":
                 return f"Reveal “{s}”"
             case "hide_line":
