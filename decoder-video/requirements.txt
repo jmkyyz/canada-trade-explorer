@@ -1,0 +1,4 @@
+flask>=3.0
+faster-whisper>=1.1
+playwright==1.56.0
+# Phase 2 (not needed yet): mediapipe, opencv-python-headless

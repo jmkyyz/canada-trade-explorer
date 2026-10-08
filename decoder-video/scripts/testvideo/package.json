@@ -1,0 +1,9 @@
+{
+  "name": "decoder-test-video",
+  "private": true,
+  "description": "Offline TTS for generating a synthetic test take with exact word timings",
+  "type": "module",
+  "dependencies": {
+    "espeak-ng": "1.0.2"
+  }
+}

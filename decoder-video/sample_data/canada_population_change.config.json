@@ -1,0 +1,30 @@
+{
+  "_note": "PLACEHOLDER DATA. Plausible shape only; swap in the real Statistics Canada series (CSV upload on the project page keeps this config).",
+  "common": {
+    "title": "Canada's population growth stalled, or did it?",
+    "subtitle": "Annual change in population, measured each quarter",
+    "source": "Source: Statistics Canada (placeholder data)",
+    "x_label": "",
+    "y_label": "People added over previous 12 months",
+    "y_format": ",~s",
+    "value_format": ",.0f",
+    "annotations": [
+      {"id": 1, "text": "Pandemic border closures", "x": "2021-Q1", "series": "previous_estimate", "position": "above"},
+      {"id": 2, "text": "Peak: 1.27 million in a year", "x": "2023-Q4", "series": "previous_estimate", "position": "above"},
+      {"id": 3, "text": "Ottawa cuts immigration targets", "x": "2024-Q4", "series": "previous_estimate", "position": "below"}
+    ]
+  },
+  "line_draw": {
+    "subtitle": "Annual change in population, measured each quarter",
+    "series": [
+      {"key": "previous_estimate", "column": "previous_estimate", "name": "Population change", "color": "#2a78d6", "dash": false}
+    ]
+  },
+  "line_split": {
+    "series": [
+      {"key": "previous_estimate", "column": "previous_estimate", "name": "Previous estimate", "color": "#8a8983", "dash": true},
+      {"key": "revised_estimate", "column": "revised_estimate", "name": "Revised estimate", "color": "#eb6834", "dash": false}
+    ],
+    "options": {"split_from": "2025-Q2", "base_series": "previous_estimate"}
+  }
+}

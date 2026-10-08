@@ -1,0 +1,7 @@
+.venv/
+projects/
+media/
+scripts/testvideo/node_modules/
+scripts/testvideo/package-lock.json
+*.sqlite3
+__pycache__/

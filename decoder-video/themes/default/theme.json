@@ -1,0 +1,137 @@
+{
+  "name": "Decoder prototype (neutral placeholder)",
+  "notes": "Placeholder styling. The video team swaps this whole folder for Globe branding: colours, fonts, sizes, layout and caption style all live here. Optional files beside it: theme.css (injected into the chart page, e.g. @font-face rules) and fonts/ (also handed to libass for burned-in captions).",
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "background": "#101010"
+  },
+  "layout": {
+    "chart": {
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1152
+    },
+    "talent": {
+      "x": 0,
+      "y": 1152,
+      "width": 1080,
+      "height": 768,
+      "default_crop_center": 0.42
+    }
+  },
+  "fonts": {
+    "headline": "\"Helvetica Neue\", Helvetica, Inter, Arial, sans-serif",
+    "body": "\"Helvetica Neue\", Helvetica, Inter, Arial, sans-serif",
+    "numeric": "\"Helvetica Neue\", Helvetica, Inter, Arial, sans-serif"
+  },
+  "chart": {
+    "background": "#fcfcfb",
+    "padding": {
+      "top": 64,
+      "right": 64,
+      "bottom": 48,
+      "left": 64
+    },
+    "plot_margin": {
+      "top": 40,
+      "right": 210,
+      "bottom": 80,
+      "left": 120
+    },
+    "title": {
+      "size": 58,
+      "weight": 700,
+      "color": "#0b0b0b",
+      "line_height": 1.12
+    },
+    "subtitle": {
+      "size": 36,
+      "weight": 400,
+      "color": "#52514e",
+      "line_height": 1.25,
+      "gap": 14
+    },
+    "source": {
+      "size": 26,
+      "weight": 400,
+      "color": "#6f6e69"
+    },
+    "axis": {
+      "label_size": 30,
+      "tick_size": 30,
+      "color": "#52514e",
+      "grid_color": "#e4e3df",
+      "grid_width": 2,
+      "zero_color": "#8a8983",
+      "zero_width": 3,
+      "y_ticks": 5,
+      "x_ticks": 6
+    },
+    "line": {
+      "width": 8,
+      "dash": "18 12",
+      "tip_dot_radius": 11
+    },
+    "series_palette": [
+      "#2a78d6",
+      "#eb6834",
+      "#1baf7a",
+      "#4a3aa7"
+    ],
+    "end_label": {
+      "size": 32,
+      "weight": 700,
+      "gap": 18
+    },
+    "annotation": {
+      "size": 32,
+      "weight": 500,
+      "color": "#0b0b0b",
+      "max_width": 380,
+      "leader_color": "#52514e",
+      "leader_width": 2,
+      "offset": 110,
+      "background": "rgba(252,252,251,0.9)"
+    },
+    "highlight": {
+      "radius": 14,
+      "ring_radius": 52,
+      "ring_width": 5,
+      "label_size": 34,
+      "label_weight": 700
+    },
+    "gap_fill_opacity": 0.18,
+    "gap_label": {
+      "size": 40,
+      "weight": 700
+    }
+  },
+  "captions": {
+    "font_family": "Helvetica Neue",
+    "font_css": "\"Helvetica Neue\", Helvetica, Inter, Arial, sans-serif",
+    "size": 68,
+    "bold": true,
+    "color": "#ffffff",
+    "active_color": "#ffd23f",
+    "outline_color": "#000000",
+    "outline": 5,
+    "shadow": 0,
+    "uppercase": false,
+    "position": "bottom",
+    "margin_bottom": 300,
+    "seam_offset": 24,
+    "margin_side": 90,
+    "min_words": 2,
+    "max_words": 4,
+    "max_chars": 22,
+    "max_gap": 0.6,
+    "highlight_active_word": true
+  },
+  "motion": {
+    "fade": 0.4,
+    "pulse_period": 0.8
+  }
+}

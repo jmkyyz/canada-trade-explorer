@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} · Decoder video{% endblock %}
+{% block topbar %}
+<input id="project-name" class="name-input" value="{{ project.name }}" aria-label="Project name">
+<span class="muted small" id="template-label"></span>
+{% endblock %}
+{% block body %}
+<main class="editor" data-pid="{{ project.id }}">
+  <!-- Preview: the same 1080x1920 layout the renderer composites, scaled down -->
+  <section class="preview-col">
+    <div class="phone" id="phone">
+      <div class="stage" id="stage">
+        <iframe id="chart-frame" class="chart-frame" src="{{ url_for('chart', pid=project.id) }}" scrolling="no" title="Chart"></iframe>
+        <div class="talent" id="talent">
+          <video id="video" playsinline preload="auto"></video>
+          <div class="talent-empty" id="talent-empty">Upload your video</div>
+        </div>
+        <div class="captions" id="captions"></div>
+      </div>
+    </div>
+    <div class="transport">
+      <button id="play" class="primary" title="Play / pause (space)">Play</button>
+      <span id="clock" class="mono">0:00.0</span>
+      <input type="range" id="scrub" min="0" max="1" step="0.01" value="0" aria-label="Scrub">
+    </div>
+    <details class="crop">
+      <summary>Talent framing</summary>
+      <label>Vertical crop <input type="range" id="crop-center" min="0" max="1" step="0.01"></label>
+      <label>Zoom <input type="range" id="crop-zoom" min="1" max="2" step="0.01"></label>
+      <label>Layout
+        <select id="layout-mode">
+          <option value="stacked">Stacked: chart on top, you below</option>
+          <option value="presenter" disabled>Presenter: chart behind you (Phase 2)</option>
+        </select>
+      </label>
+    </details>
+  </section>
+
+  <section class="work-col">
+    <nav class="tabs" role="tablist">
+      <button data-tab="chart" class="active">1 · Chart</button>
+      <button data-tab="video">2 · Video</button>
+      <button data-tab="cues">3 · Transcript &amp; cues</button>
+      <button data-tab="render">4 · Render</button>
+    </nav>
+
+    <div class="tab" id="tab-chart">
+      <form id="config-form" class="stack"></form>
+    </div>
+
+    <div class="tab hidden" id="tab-video">
+      <div class="stack">
+        <label>Talking-head video (portrait 1080×1920, under 2 minutes)
+          <input type="file" id="video-file" accept="video/*,.mov,.mp4">
+        </label>
+        <label class="radio"><input type="checkbox" id="auto-transcribe" checked> Transcribe automatically after upload</label>
+        <button id="upload-video" class="primary">Upload</button>
+        <div id="video-info" class="muted small"></div>
+        <div class="job" id="job-video"></div>
+        <hr>
+        <button id="transcribe">Re-transcribe</button>
+        <div class="job" id="job-transcribe"></div>
+        <p class="muted small">Re-recorded? Upload the new take: cues are re-attached by matching words,
+          and anything that can't be matched is flagged in the cue list.</p>
+        <details>
+          <summary class="small">Import word timings (JSON) instead of Whisper</summary>
+          <textarea id="import-json" rows="5" placeholder='[{"text":"Canada","start":0.4,"end":0.8}, ...]'></textarea>
+          <button id="import-btn">Import</button>
+        </details>
+      </div>
+    </div>
+
+    <div class="tab hidden" id="tab-cues">
+      <p class="muted small">Click a word to jump there and attach a chart action. Words with cues are underlined.
+        Double-click a word to fix its spelling (captions use it).</p>
+      <div id="cue-editor" class="cue-editor hidden"></div>
+      <div id="transcript" class="transcript"></div>
+      <h3>Cues <a class="small" id="cuesheet-csv" href="#">cue sheet CSV</a> · <a class="small" id="cuesheet-json" href="#" target="_blank">JSON</a></h3>
+      <table class="cue-table"><thead><tr><th>Time</th><th>Word</th><th>Action</th><th></th></tr></thead>
+        <tbody id="cue-list"></tbody></table>
+    </div>
+
+    <div class="tab hidden" id="tab-render">
+      <div class="stack">
+        <p>Renders the chart in headless Chromium at 30 fps, then composites with FFmpeg.</p>
+        <button id="render" class="primary">Render</button>
+        <div class="job" id="job-render"></div>
+        <div id="renders"></div>
+      </div>
+    </div>
+  </section>
+</main>
+<script src="{{ url_for('static', filename='js/editor.js') }}"></script>
+{% endblock %}

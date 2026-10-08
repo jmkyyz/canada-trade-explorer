@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block body %}
+<main class="home">
+  <section class="card">
+    <h2>New project</h2>
+    <form method="post" action="{{ url_for('api_create_project') }}" enctype="multipart/form-data" class="stack">
+      <label>Name <input name="name" placeholder="Defaults to the chart title"></label>
+      <fieldset>
+        <legend>Chart template</legend>
+        {% for t in templates %}
+        <label class="radio">
+          <input type="radio" name="template" value="{{ t.name }}" {% if loop.first %}checked{% endif %}>
+          <b>{{ t.label }}</b> <span class="muted">{{ t.description }}</span>
+        </label>
+        {% endfor %}
+        <p class="muted small">Planned: sorted/highlighted bars, scatter with zoom, big-number count-up.</p>
+      </fieldset>
+      <label>Chart data (CSV): first column is x, each other column is a series
+        <input type="file" name="csv" accept=".csv,text/csv">
+      </label>
+      <label class="radio"><input type="checkbox" name="sample" value="1">
+        Use the sample instead: Canada's population change, previous vs. revised (placeholder data)</label>
+      {% if themes|length > 1 %}
+      <label>Theme <select name="theme">{% for th in themes %}<option>{{ th }}</option>{% endfor %}</select></label>
+      {% endif %}
+      <button class="primary">Create project</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Projects</h2>
+    {% if not projects %}<p class="muted">None yet.</p>{% endif %}
+    <ul class="projects">
+      {% for p in projects %}
+      <li>
+        <a href="{{ url_for('editor', pid=p.id) }}">{{ p.name }}</a>
+        <span class="muted small">{{ p.template }} · {% if p.video %}{{ '%.0f' % p.video.duration }}s video{% else %}no video yet{% endif %}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+</main>
+{% endblock %}
