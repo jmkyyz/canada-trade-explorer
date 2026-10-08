@@ -622,8 +622,7 @@
     box.textContent = "";
     const f = (path, label) => el("li", {}, el("a", { href: `/p/${PID}/files/${path}?download=1` }, label));
     for (const r of list) {
-      box.append(el("div", { class: "render-item" },
-        el("video", { src: `/p/${PID}/files/${r.final}`, controls: true, preload: "metadata" }),
+      box.append(el("div", { class: "render-item" }, el("div", { class: "render-info" },
         el("b", {}, r.dir.split("/").pop()),
         el("div", { class: "muted small" }, `${r.frames} frames, ${r.duration.toFixed(1)}s · capture ${r.capture.seconds}s ` +
           `(${r.capture.screenshots} drawn, ${r.capture.reused} reused)`),
@@ -634,7 +633,9 @@
           f(r.srt, "Captions (.srt)"),
           f(r.cue_sheet_csv, "Cue sheet (.csv)"),
           f(r.cue_sheet_json, "Cue sheet (.json)"),
-          f(r.transcript_json, "Transcript with word timings (.json)"))));
+          f(r.transcript_json, "Transcript with word timings (.json)"))),
+        // #t=1 shows a frame from the second second, not the (often blank) first frame
+        el("video", { src: `/p/${PID}/files/${r.final}#t=1`, controls: true, preload: "metadata" })));
     }
   }
 
