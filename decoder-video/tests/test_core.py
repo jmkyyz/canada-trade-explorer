@@ -166,3 +166,19 @@ def test_reattach_ok_moved_orphaned(project):
     timed = cues.timed_cues(project, new)
     assert [c["id"] for c in timed] == [c_ok, c_moved]  # orphans are left out of the render
     assert timed[0]["t"] == new["words"][nw.index("Ottawa")]["start"]
+
+
+def test_load_wav_for_whisper(tmp_path):
+    """Whisper gets samples straight from our WAV, not via PyAV."""
+    import subprocess
+
+    from decoder import config
+    from decoder.media import extract_wav
+    from decoder.transcribe import load_wav
+
+    src, wav = tmp_path / "tone.mp4", tmp_path / "tone.wav"
+    subprocess.run([config.FFMPEG, "-loglevel", "error", "-f", "lavfi", "-i", "sine=f=440:d=2",
+                    "-c:a", "aac", str(src)], check=True)
+    extract_wav(src, wav)
+    a = load_wav(wav)
+    assert a.dtype.name == "float32" and abs(len(a) - 32000) < 1600 and 0 < abs(a).max() <= 1.0

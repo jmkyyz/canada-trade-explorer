@@ -20,6 +20,23 @@ def norm(word: str) -> str:
     return w.strip(".'-")
 
 
+def load_wav(path):
+    """16 kHz mono PCM WAV (written by media.extract_wav) -> float32 samples.
+
+    Passing samples to faster-whisper skips its own PyAV-based decoder, which
+    breaks with newer PyAV releases ("unexpected keyword argument
+    'metadata_errors'")."""
+    import wave
+
+    import numpy as np
+
+    with wave.open(str(path), "rb") as w:
+        if w.getframerate() != 16000 or w.getnchannels() != 1 or w.getsampwidth() != 2:
+            raise ValueError("Expected 16 kHz mono 16-bit WAV")
+        pcm = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16)
+    return pcm.astype(np.float32) / 32768.0
+
+
 def get_model():
     global _model
     with _model_lock:
@@ -38,7 +55,7 @@ def transcribe(wav_path, prompt: str = "", progress_cb=None, duration: float = N
     """
     model = get_model()
     segments, info = model.transcribe(
-        str(wav_path),
+        load_wav(wav_path),
         language="en" if config.WHISPER_MODEL.endswith(".en") else None,
         word_timestamps=True,
         vad_filter=True,
