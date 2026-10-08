@@ -17,7 +17,7 @@ so the chart sits behind you) is stubbed, not built.
 ## Setup (Mac)
 
 ```bash
-brew install ffmpeg            # needs libx264, prores_ks and libass (the check below confirms)
+brew install ffmpeg-full       # has libx264, prores_ks and libass (burned-in captions)
 cd decoder-video
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
@@ -29,9 +29,11 @@ python app.py                  # http://127.0.0.1:5055/
 The first transcription downloads the Whisper model (`small.en`, about 480 MB)
 to `~/.cache/huggingface`. To change it, set `DECODER_WHISPER_MODEL`:
 `medium.en` is more accurate on names and numbers, and about 3x slower.
-If `check_setup.py` says the `ass` filter is missing, your FFmpeg build has no
-libass. Install a fuller build, such as `brew install ffmpeg-full`, if your
-Homebrew has that formula.
+Homebrew's plain `ffmpeg` formula has no libass, so it can't burn in captions.
+`ffmpeg-full` is keg-only (not on your PATH), and the app finds it by itself in
+`/opt/homebrew/opt/ffmpeg-full/bin` or `/usr/local/opt/ffmpeg-full/bin`. To use
+a different build, set `DECODER_FFMPEG` and `DECODER_FFPROBE` to its paths.
+`check_setup.py` prints which ffmpeg it found.
 
 ## Workflow
 

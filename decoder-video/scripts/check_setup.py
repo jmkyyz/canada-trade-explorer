@@ -2,6 +2,9 @@
 import shutil
 import subprocess
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 ok = True
 
@@ -12,16 +15,20 @@ def check(name, cond, fix=""):
     ok &= bool(cond)
 
 
+from decoder import config  # noqa: E402  (same ffmpeg the app will use)
+
+FIX = "brew install ffmpeg-full  (or set DECODER_FFMPEG / DECODER_FFPROBE to a build that has it)"
 print("FFmpeg")
-ff = shutil.which("ffmpeg")
-check("ffmpeg on PATH", ff, "brew install ffmpeg")
+ff = shutil.which(config.FFMPEG)
+check(f"ffmpeg found: {ff or config.FFMPEG}", ff, "brew install ffmpeg-full")
 if ff:
-    enc = subprocess.run(["ffmpeg", "-hide_banner", "-encoders"], capture_output=True, text=True).stdout
-    flt = subprocess.run(["ffmpeg", "-hide_banner", "-filters"], capture_output=True, text=True).stdout
-    check("libx264 encoder", " libx264 " in enc, "brew reinstall ffmpeg")
-    check("prores_ks encoder (ProRes 4444)", " prores_ks " in enc, "brew reinstall ffmpeg")
-    check("ass filter (libass, burned-in captions)", " ass " in flt, "brew reinstall ffmpeg")
-check("ffprobe on PATH", shutil.which("ffprobe"), "brew install ffmpeg")
+    enc = subprocess.run([ff, "-hide_banner", "-encoders"], capture_output=True, text=True).stdout
+    flt = subprocess.run([ff, "-hide_banner", "-filters"], capture_output=True, text=True).stdout
+    check("libx264 encoder", " libx264 " in enc, FIX)
+    check("prores_ks encoder (ProRes 4444)", " prores_ks " in enc, FIX)
+    check("ass filter (libass, burned-in captions)", " ass " in flt, FIX)
+check(f"ffprobe found: {shutil.which(config.FFPROBE) or config.FFPROBE}", shutil.which(config.FFPROBE),
+      "brew install ffmpeg-full")
 
 print("Python packages")
 for mod, pkg in (("flask", "flask"), ("faster_whisper", "faster-whisper"), ("playwright", "playwright")):

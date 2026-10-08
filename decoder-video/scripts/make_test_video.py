@@ -55,7 +55,9 @@ def main():
     # Burn the running time into the picture so preview/render sync is visible.
     vf = ("drawtext=font=Inter:fontsize=72:fontcolor=white:box=1:boxcolor=black@0.6:"
           "x=(w-tw)/2:y=1700:text='%{pts\\:hms}'")
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-loop", "1", "-framerate", "30000/1001",
+    sys.path.insert(0, str(HERE.parent))
+    from decoder import config
+    subprocess.run([config.FFMPEG, "-y", "-loglevel", "error", "-loop", "1", "-framerate", "30000/1001",
                     "-i", str(png), "-i", str(wav), "-vf", vf, "-shortest",
                     "-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "veryfast",
                     "-c:a", "aac", "-ar", "44100", str(out.with_suffix(".mov"))], check=True)

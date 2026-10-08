@@ -16,8 +16,20 @@ WHISPER_MODEL = os.environ.get("DECODER_WHISPER_MODEL", "small.en")
 WHISPER_DEVICE = os.environ.get("DECODER_WHISPER_DEVICE", "cpu")
 WHISPER_COMPUTE = os.environ.get("DECODER_WHISPER_COMPUTE", "int8")
 
-FFMPEG = os.environ.get("DECODER_FFMPEG", "ffmpeg")
-FFPROBE = os.environ.get("DECODER_FFPROBE", "ffprobe")
+
+
+def _ffmpeg_bin(name: str) -> str:
+    """Prefer Homebrew's ffmpeg-full (it has libass for captions). It is keg-only,
+    i.e. not on PATH, because it conflicts with the plain `ffmpeg` formula."""
+    for prefix in ("/opt/homebrew", "/usr/local"):  # Apple Silicon, Intel
+        p = Path(prefix) / "opt" / "ffmpeg-full" / "bin" / name
+        if p.exists():
+            return str(p)
+    return name
+
+
+FFMPEG = os.environ.get("DECODER_FFMPEG") or _ffmpeg_bin("ffmpeg")
+FFPROBE = os.environ.get("DECODER_FFPROBE") or _ffmpeg_bin("ffprobe")
 
 # Parallel Playwright pages used to capture chart frames.
 RENDER_WORKERS = int(os.environ.get("DECODER_RENDER_WORKERS", "3"))
