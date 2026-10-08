@@ -5,8 +5,8 @@ x values are kept as their original strings (so cue params like
 "2025-Q2" stay human-readable) plus a numeric position used for scales:
 
   quarter  2020-Q1, 2020Q1, 2020 Q1, Q1 2020  -> 2020.0, 2020.25, ...
-  month    2020-01                          -> 2020 + (m-1)/12
-  date     2020-01-15                       -> fractional year
+  month    2020-01, Apr-21, April 2021      -> 2020 + (m-1)/12
+  date     2020-01-15, 01-Apr-21, 4/1/2021  -> fractional year
   year     2020                             -> 2020
   number   any other numeric                -> as is
   category anything else                    -> 0, 1, 2, ...
@@ -22,7 +22,22 @@ QUARTER_RES = [
 ]
 MONTH_RE = re.compile(r"^(\d{4})-(\d{1,2})$")
 DATE_RE = re.compile(r"^(\d{4})-(\d{1,2})-(\d{1,2})$")
+# Spreadsheet-style dates: 01-Apr-21, 1 April 2021, Apr-21, April 2021, 4/1/2021
+MONTHS = {m: i for i, m in enumerate(
+    ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"], 1)}
+DMONY_RE = re.compile(r"^(\d{1,2})[-/ ]([A-Za-z]{3,9})\.?[-/ ,]+(\d{2}|\d{4})$")
+MONY_RE = re.compile(r"^([A-Za-z]{3,9})\.?[-/ ,]+(\d{2}|\d{4})$")
+MDY_RE = re.compile(r"^(\d{1,2})/(\d{1,2})/(\d{4})$")
 YEAR_RE = re.compile(r"^\d{4}$")
+
+
+def _mon(name):
+    return MONTHS.get(name[:3].lower())
+
+
+def _year(y):
+    y = int(y)
+    return y if y >= 100 else (2000 + y if y < 70 else 1900 + y)
 
 
 def _quarter(s):
@@ -37,14 +52,28 @@ def _quarter(s):
 
 def _month(s):
     m = MONTH_RE.match(s)
-    return int(m[1]) + (int(m[2]) - 1) / 12 if m else None
+    if m:
+        return int(m[1]) + (int(m[2]) - 1) / 12
+    m = MONY_RE.match(s)
+    if m and _mon(m[1]):
+        return _year(m[2]) + (_mon(m[1]) - 1) / 12
+    return None
 
 
 def _date(s):
     m = DATE_RE.match(s)
-    if not m:
+    if m:
+        y, mo, d = int(m[1]), int(m[2]), int(m[3])
+    elif (m := DMONY_RE.match(s)) and _mon(m[2]):
+        y, mo, d = _year(m[3]), _mon(m[2]), int(m[1])
+    elif m := MDY_RE.match(s):
+        y, mo, d = int(m[3]), int(m[1]), int(m[2])
+    else:
         return None
-    d = date(int(m[1]), int(m[2]), int(m[3]))
+    try:
+        d = date(y, mo, d)
+    except ValueError:
+        return None
     start = date(d.year, 1, 1)
     days = (date(d.year + 1, 1, 1) - start).days
     return d.year + (d - start).days / days

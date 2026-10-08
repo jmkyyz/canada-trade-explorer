@@ -40,10 +40,18 @@ def test_parse_sample_quarters():
 @pytest.mark.parametrize("vals,kind", [
     (["2020Q1", "2020 Q2"], "quarter"), (["Q3 2021", "Q4 2021"], "quarter"),
     (["2020-01", "2020-02"], "month"), (["2020-01-15", "2021-06-30"], "date"),
+    (["01-Jan-20", "01-Apr-21", "01-Oct-25"], "date"), (["Apr-21", "Jul-21"], "month"),
+    (["April 2021", "May 2021"], "month"), (["4/1/2021", "12/31/2021"], "date"),
     (["2019", "2020"], "year"), (["1.5", "2"], "number"), (["Ontario", "Quebec"], "category"),
 ])
 def test_detect_x_type(vals, kind):
     assert detect_x_type(vals) == kind
+
+
+def test_spreadsheet_dates_become_positions():
+    d = parse_csv("date,a\n01-Jan-21,1\n01-Apr-21,2\n01-Jul-21,3\n")
+    assert d["x"]["type"] == "date" and d["x"]["values"][1] == "01-Apr-21"
+    assert d["x"]["positions"][0] == 2021.0 and 2021.24 < d["x"]["positions"][1] < 2021.25
 
 
 def test_parse_handles_gaps_and_formatting():
