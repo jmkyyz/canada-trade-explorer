@@ -22,7 +22,7 @@
   },
   "line_split": {
     "series": [
-      {"key": "previous_estimate", "column": "previous_estimate", "name": "Previous estimate", "color": "#8a8983", "dash": true},
+      {"key": "previous_estimate", "column": "previous_estimate", "name": "Previous estimate", "color": "#2a78d6", "dash": false},
       {"key": "revised_estimate", "column": "revised_estimate", "name": "Revised estimate", "color": "#eb6834", "dash": false}
     ],
     "options": {"split_from": "2025-Q2", "base_series": "previous_estimate"}

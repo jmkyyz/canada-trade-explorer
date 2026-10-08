@@ -38,8 +38,8 @@ PLANS = {
         ("Ottawa", 1, "draw_line", {"series": "previous_estimate", "to": "end", "duration": 2.5}),
         ("targets,", 1, "clear_highlights", {}),
         ("zero.", 1, "split_line", {"series": "revised_estimate", "duration": 2.5}),
-        ("happens", 1, "shade_gap", {"duration": 0.8}),
-        ("next?", 1, "label_gap", {"x": "end"}),
+        ("happens", 1, "shade_gap", {"series": "revised_estimate", "duration": 0.8}),
+        ("next?", 1, "label_gap", {"x": "end"}),  # series defaults to the diverging one
     ],
 }
 

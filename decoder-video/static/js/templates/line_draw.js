@@ -295,8 +295,12 @@
           .attr("stroke", s.color).attr("stroke-width", H.ring_width)
           .attr("opacity", total ? 1 - f : 0);
         const above = cy - H.ring_radius - 6 > ctx.plot.y;
-        g.select(".val").attr("x", cx)
-          .attr("y", above ? cy - H.radius - 22 : cy + H.radius + H.label_size + 14)
+        // If the line's tip (and its name label) sits on this point, put the value to the left.
+        const atTip = Math.abs(tl.value("head." + h.series, t) - xp) < 1e-6;
+        g.select(".val")
+          .attr("x", atTip ? cx - H.radius - 14 : cx)
+          .attr("text-anchor", atTip ? "end" : "middle")
+          .attr("y", atTip ? cy - H.radius : above ? cy - H.radius - 22 : cy + H.radius + H.label_size + 14)
           .attr("opacity", h.label ? 1 : 0)
           .text(ctx.fmtValue(yv));
       });

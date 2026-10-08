@@ -455,7 +455,8 @@
 
   function paramInput(p, value) {
     const cfg = P.project.config, data = P.project.data;
-    const v = value ?? p.default;
+    let v = value ?? p.default;
+    if (v === "@diverging") v = (cfg.series || []).find(s => s.key !== cfg.options?.base_series)?.key;
     const attrs = { "data-p": p.name };
     switch (p.type) {
       case "series":

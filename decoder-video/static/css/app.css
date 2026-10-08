@@ -120,3 +120,4 @@ fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px
   .editor, .home { grid-template-columns: 1fr; }
   .preview-col { position: static; }
 }
+.stack > button { align-self: flex-start; }
