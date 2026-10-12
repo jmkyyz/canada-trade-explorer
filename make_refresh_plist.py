@@ -24,8 +24,8 @@ DATES = HERE / "release_dates.txt"
 PLIST = HERE / "com.statcan.cimt-refresh.plist"
 
 # Where the job runs from on the user's machine (TCC-safe home clone).
-SCRIPT = "/Users/jasonkirby/statcan-explorer/cimt/refresh.py"
-LOG = "/Users/jasonkirby/statcan-explorer/cimt/cimt_refresh.log"
+SCRIPT = "/Users/jasonkirby/projects/canada-trade-explorer/refresh.py"
+LOG = "/Users/jasonkirby/projects/canada-trade-explorer/cimt_refresh.log"
 # Use the interpreter that has duckdb/pyarrow/requests/boto3 installed (the
 # framework python), not /usr/bin/python3 which lacks them.
 PYTHON = sys.executable
