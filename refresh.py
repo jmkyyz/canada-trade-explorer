@@ -9,8 +9,8 @@ lookups. Re-ingest is idempotent (it overwrites whole flow-year partitions), so
 running this more often than data changes is harmless.
 
 Triggered by a launchd LaunchAgent on a monthly schedule — see
-com.statcan.cimt-refresh.plist and the install steps in README.md. Runs from the
-TCC-safe ~/statcan-explorer clone so macOS doesn't block file access.
+com.statcan.cimt-refresh.plist and the install steps in README.md. Runs from
+~/projects/canada-trade-explorer, outside the folders macOS blocks background jobs from.
 
 Manual run:  python refresh.py            # current + previous year
              python refresh.py --years 2024,2025,2026

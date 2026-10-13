@@ -185,23 +185,27 @@ agent — one trigger per release day at **08:35 local (ET)**, ~5 min after the
 08:30 release. With `--retry`, the job re-checks every 15 min for ~1h45m if the
 bulk file posts late, so the app is current the morning you need it.
 
-The job runs from the TCC-safe `~/statcan-explorer` clone (background jobs can't
-read `~/Desktop`), like the EV detector and the other StatCan jobs.
+The job runs from `~/projects/canada-trade-explorer`, outside `~/Desktop` and
+`~/Documents` (macOS blocks background jobs from reading those). The Cloudflare
+R2 keys are read from `~/cimt_r2.env` or `~/cimt_r2.env.rtf` in the home folder,
+never from Git.
 
 ```bash
-# 1. ensure cimt/ and its data/ exist under ~/statcan-explorer
-#    (git pull there; seed data by copying ~/Desktop/StatCanApp/cimt/data over,
-#     or run `python ingest.py --years 2007-2026` once from that clone)
-# 2. (re)generate the plist from the date list, then install + load it
-python ~/statcan-explorer/cimt/make_refresh_plist.py
-cp ~/statcan-explorer/cimt/com.statcan.cimt-refresh.plist ~/Library/LaunchAgents/
+# 1. ensure data/ exists under ~/projects/canada-trade-explorer
+#    (or seed it once with `python ingest.py --years 2007-2026`)
+# 2. (re)generate the plist from the date list, then install + load it.
+#    Use the framework python that has the dependencies installed: the plist
+#    runs refresh.py with whichever python runs this script.
+cd ~/projects/canada-trade-explorer
+/Library/Frameworks/Python.framework/Versions/3.14/bin/python3 make_refresh_plist.py
+cp com.statcan.cimt-refresh.plist ~/Library/LaunchAgents/
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.statcan.cimt-refresh.plist
 launchctl enable gui/$(id -u)/com.statcan.cimt-refresh
 
 # verify / run once now / inspect logs
 launchctl list | grep cimt
 launchctl kickstart -k gui/$(id -u)/com.statcan.cimt-refresh
-tail -f ~/statcan-explorer/cimt/cimt_refresh.log
+tail -f ~/projects/canada-trade-explorer/cimt_refresh.log
 ```
 
 The current date list runs through the **Feb 2027** release (December 2026
@@ -337,7 +341,7 @@ Quickest way to read it back: `view-source:` the live page and look for
 - **`release_dates.txt` runs out after 2027-02-04.** After that the scheduled
   triggers stop firing until the next StatCan schedule is appended and
   `make_refresh_plist.py` is re-run.
-- **`make_refresh_plist.py` hardcodes `/Users/jasonkirby/statcan-explorer/cimt/`**
+- **`make_refresh_plist.py` hardcodes `/Users/jasonkirby/projects/canada-trade-explorer/`**
   and is macOS-only. Any other host needs cron, a systemd timer, or scheduled CI.
 - **Three third-party CDNs are load-bearing:** Chart.js and SheetJS from cdnjs,
   DuckDB-WASM from jsDelivr. A host with a strict CSP must self-host all three.
